@@ -146,5 +146,20 @@ class UsuarioUpdateView(AdministradorMixin, UsuarioQuerysetMixin, UpdateView):
         ):
             messages.error(self.request, "Você não pode desativar ou rebaixar o próprio usuário.")
             return redirect("usuario_lista")
+        era_administrador_ativo = form.instance.is_active and form.instance.papel == Papel.ADMINISTRADOR
+        deixara_de_ser_administrador = (
+            not form.cleaned_data["is_active"] or form.cleaned_data["papel"] != Papel.ADMINISTRADOR
+        )
+        if era_administrador_ativo and deixara_de_ser_administrador:
+            restantes = Usuario.objects.filter(
+                organizacao=self.request.user.organizacao,
+                papel=Papel.ADMINISTRADOR,
+                is_active=True,
+            ).exclude(pk=form.instance.pk)
+            if not restantes.exists():
+                messages.error(
+                    self.request, "A organização precisa manter pelo menos um administrador ativo."
+                )
+                return redirect("usuario_lista")
         messages.success(self.request, "Usuário atualizado.")
         return super().form_valid(form)

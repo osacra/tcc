@@ -3,9 +3,9 @@ services:
   db:
     image: postgres:16
     environment:
-      POSTGRES_DB: liberacao
-      POSTGRES_USER: liberacao
-      POSTGRES_PASSWORD: liberacao
+      POSTGRES_DB: ${POSTGRES_DB:?defina POSTGRES_DB no .env}
+      POSTGRES_USER: ${POSTGRES_USER:?defina POSTGRES_USER no .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
     volumes:
       - dados_pg:/var/lib/postgresql/data
     healthcheck:
@@ -19,9 +19,9 @@ services:
     command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
     environment:
       POSTGRES_HOST: db
-      POSTGRES_DB: liberacao
-      POSTGRES_USER: liberacao
-      POSTGRES_PASSWORD: liberacao
+      POSTGRES_DB: ${POSTGRES_DB:?defina POSTGRES_DB no .env}
+      POSTGRES_USER: ${POSTGRES_USER:?defina POSTGRES_USER no .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
       DJANGO_DEBUG: "1"
     ports:
       - "8000:8000"

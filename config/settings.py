@@ -7,6 +7,8 @@ ambiente (ver .env.example). O banco de dados é sempre o PostgreSQL.
 import os
 from pathlib import Path
 
+from django.core.exceptions import ImproperlyConfigured
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
@@ -17,10 +19,20 @@ def env_bool(nome, padrao=False):
     return valor.strip().lower() in {"1", "true", "yes", "sim", "on"}
 
 
-# Chave de desenvolvimento: NÃO usar em produção (implantação está fora do escopo do TCC).
-SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "chave-somente-para-desenvolvimento-local")
-DEBUG = env_bool("DJANGO_DEBUG", True)
-ALLOWED_HOSTS = [h for h in os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",") if h]
+AMBIENTE = os.environ.get("DJANGO_ENV", "development").strip().lower()
+EM_PRODUCAO = AMBIENTE in {"production", "prod"}
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "").strip()
+if EM_PRODUCAO and not SECRET_KEY:
+    raise ImproperlyConfigured("DJANGO_SECRET_KEY é obrigatório fora do desenvolvimento.")
+SECRET_KEY = SECRET_KEY or "chave-somente-para-desenvolvimento-local"
+DEBUG = env_bool("DJANGO_DEBUG", not EM_PRODUCAO)
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+    if host.strip()
+]
+if EM_PRODUCAO and not ALLOWED_HOSTS:
+    raise ImproperlyConfigured("DJANGO_ALLOWED_HOSTS deve conter ao menos um host em produção.")
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -111,3 +123,10 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = "DENY"
 SESSION_COOKIE_SECURE = env_bool("DJANGO_COOKIES_SEGUROS", False)
 CSRF_COOKIE_SECURE = env_bool("DJANGO_COOKIES_SEGUROS", False)
+if EM_PRODUCAO:
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_SSL_REDIRECT = env_bool("DJANGO_SSL_REDIRECT", True)
+    SECURE_HSTS_SECONDS = int(os.environ.get("DJANGO_HSTS_SECONDS", "31536000"))
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True

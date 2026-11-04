@@ -20,6 +20,8 @@ PostgreSQL, Bootstrap 5 (CDN), pytest + pytest-django, coverage, Ruff e Black, D
 | Histórico/auditoria imutável (aplicação **e** gatilho no PostgreSQL) | ✔ |
 | Revogação de liberação vigente (justificativa obrigatória) | ✔ |
 | Expiração de liberações vencidas (transição automática, registrada no histórico) | ✔ |
+| Integridade multiempresa no modelo e em gatilhos PostgreSQL | ✔ |
+| Admin técnico restrito ao Superadministrador e proteção do último Administrador ativo | ✔ |
 
 Papéis: Solicitante, Analista de Segurança, Gestor, Administrador da organização e
 Superadministrador da plataforma (sem organização; cria organizações).
@@ -42,6 +44,7 @@ pip install -r requirements-dev.txt
 cp .env.example .env               # e exporte as variáveis (ou defina-as no shell)
 # PostgreSQL rodando, com o banco/usuário informados nas variáveis abaixo
 python manage.py migrate
+python manage.py expirar_liberacoes  # rotina operacional idempotente (opcional)
 python manage.py seed_demo         # opcional: organização de demonstração
 python manage.py createsuperuser   # cria o Superadministrador (papel definido automaticamente)
 python manage.py runserver
@@ -50,16 +53,18 @@ python manage.py runserver
 ### Variáveis de ambiente
 | Variável | Padrão | Função |
 |---|---|---|
-| `DJANGO_SECRET_KEY` | chave de desenvolvimento | chave secreta (trocar fora do desenvolvimento) |
-| `DJANGO_DEBUG` | `1` | modo debug |
+| `DJANGO_ENV` | `development` | use `production` fora do desenvolvimento |
+| `DJANGO_SECRET_KEY` | chave local | obrigatória em produção |
+| `DJANGO_DEBUG` | `1` em desenvolvimento | modo debug |
 | `DJANGO_ALLOWED_HOSTS` | `localhost,127.0.0.1` | hosts permitidos |
 | `DJANGO_COOKIES_SEGUROS` | `0` | cookies `Secure` (usar `1` com HTTPS) |
 | `POSTGRES_DB` / `_USER` / `_PASSWORD` | `liberacao` | credenciais do banco |
 | `POSTGRES_HOST` / `POSTGRES_PORT` | `127.0.0.1` / `5432` | endereço do banco |
 
 ### Migrações e primeiro superusuário
-`python manage.py migrate` aplica as migrações (a `liberacoes.0002` cria os gatilhos de imutabilidade
-do histórico no PostgreSQL). `python manage.py createsuperuser` cria o **Superadministrador**: ele não
+`python manage.py migrate` aplica as migrações. Além do gatilho de imutabilidade do histórico,
+as migrations criam gatilhos para coerência multiempresa, liberação somente após aprovação e
+preservação do último administrador ativo. `python manage.py createsuperuser` cria o **Superadministrador**: ele não
 pertence a nenhuma organização e usa a tela **Organizações** para criar cada organização junto com o
 seu primeiro Administrador.
 
@@ -99,19 +104,20 @@ nunca gera `Liberacao`. A validade da liberação é a janela de acesso informad
 - `accounts`: `Organizacao`, `Usuario` (modelo customizado, papel + organização, restrição de banco), RBAC (`PapelRequeridoMixin`), gestão de organizações/usuários.
 - `cadastros`: entidades mestres e validadores (CPF/CNPJ/CNH/placa).
 - `liberacoes`: modelos do processo, máquina de estados, regras, **serviços transacionais** (`services.py`), formulários, views.
-- **Isolamento (RNF01):** todas as tabelas de negócio herdam `ModeloDaOrganizacao` (coluna `organizacao` + `objects.da_organizacao(org)`); as views usam `OrganizacaoQuerysetMixin`, então um registro de outra organização resulta em **404** na leitura, edição ou exclusão; os serviços revalidam a organização.
+- **Isolamento (RNF01):** todas as tabelas de negócio herdam `ModeloDaOrganizacao` (coluna `organizacao` + `objects.da_organizacao(org)`); as views usam `OrganizacaoQuerysetMixin`, então um registro de outra organização resulta em **404** na leitura, edição ou exclusão; os serviços revalidam a organização; gatilhos PostgreSQL rejeitam relações cross-tenant.
 - **Auditoria (RNF03):** `HistoricoEvento` recusa `save` de registro existente, `delete`, `update` e `bulk_update` na aplicação; além disso, gatilhos do PostgreSQL rejeitam `UPDATE`/`DELETE` mesmo fora do ORM.
 - Segurança: hash PBKDF2, CSRF, autoescape de templates (XSS), ORM parametrizado, cookies HttpOnly, `X-Frame-Options: DENY`, CPF mascarado em listagens.
-- Transações: solicitação + avaliações + decisão + liberação + histórico são gravados em `transaction.atomic` (com `select_for_update` nas decisões e revogações).
+- Transações: solicitação + avaliações + decisão + liberação + histórico são gravados em `transaction.atomic` (com `select_for_update` nas avaliações, decisões, revogações e expiração).
 
 ## Testes e qualidade
 ```bash
-python -m pytest                                  # 232 testes (PostgreSQL; cria o banco test_*)
-python -m coverage run -m pytest && python -m coverage report
+python -m pytest                                  # PostgreSQL; cria o banco test_*
+make coverage                                    # exige cobertura mínima de 90 %
+make quality
 python -m ruff check . && python -m black --check .
 ```
-Última execução: **232 testes aprovados, cobertura total de 97 %** (`liberacoes/regras.py`: 99 %,
-`liberacoes/services.py`: 100 %); Ruff e Black sem pendências. Além dos testes, o fluxo foi percorrido
+Última execução: a suíte e os quality gates devem ser executados no PostgreSQL local ou via Compose;
+o quality gate exige cobertura total mínima de 90 %. Além dos testes, o fluxo foi percorrido
 contra o servidor HTTP real (login com CSRF, os três resultados da avaliação, decisão, revogação, histórico).
 
 ## Decisões de projeto a confirmar
@@ -126,12 +132,13 @@ contra o servidor HTTP real (login com CSRF, os três resultados da avaliação,
 
 ## Fora desta entrega (próximos incrementos)
 Catálogo de regras **configurável** pelo Administrador (RF10), regras de histórico/frequência/horário,
-`Ocorrencia` (RF11), painel de indicadores (RF13), exportação CSV (RF14), registro de entrada/saída
-(o estado *Utilizada* existe na máquina de estados, sem tela), política de retenção/anonimização
+`Ocorrencia` (RF11), painel de indicadores (RF13), exportação CSV (RF14), tela de registro de entrada/saída
+(o serviço transacional do estado *Utilizada* está disponível), política de retenção/anonimização
 (RNF04 parcial: minimização e mascaramento implementados) e avaliação com especialista.
 
 ## Limitações conhecidas
 - `docker-compose.yml` não foi executado (sem Docker no ambiente de desenvolvimento).
 - Bootstrap é carregado de CDN (precisa de internet no navegador).
-- A expiração de liberações ocorre sob demanda (ao abrir telas relevantes); não há agendador.
+- A expiração pode ser executada sob demanda nas telas relevantes ou pelo comando idempotente
+  `python manage.py expirar_liberacoes`, que deve ser agendado pelo ambiente operacional.
 - Sem testes de interface em navegador; a interface foi verificada por HTTP e por testes de view.

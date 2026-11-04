@@ -1,5 +1,7 @@
 """Gestão de organizações (Superadministrador) e de usuários (Administrador)."""
 
+import pytest
+from django.db import DatabaseError
 from django.urls import reverse
 
 from accounts.models import Organizacao, Papel, Usuario
@@ -88,6 +90,11 @@ def test_administrador_nao_desativa_a_si_mesmo(logar, admin_a):
     )
     admin_a.refresh_from_db()
     assert admin_a.is_active
+
+
+def test_banco_nao_deixa_organizacao_sem_admin_ativo(admin_a):
+    with pytest.raises(DatabaseError, match="pelo menos um administrador ativo"):
+        Usuario.objects.filter(pk=admin_a.pk).update(is_active=False)
 
 
 def test_home_exibe_cartoes_conforme_o_papel(logar, equipe_a):

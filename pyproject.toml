@@ -17,6 +17,7 @@ omit = ["*/migrations/*", "*/tests/*", "*/management/*", "*/admin.py"]
 
 [tool.coverage.report]
 show_missing = true
+fail_under = 90
 
 [tool.black]
 line-length = 110
