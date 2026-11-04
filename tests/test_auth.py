@@ -113,6 +113,18 @@ def test_superadministrador_nao_acessa_dados_de_negocio(logar, db):
     assert client.get(reverse("solicitacao_lista")).status_code == 403
 
 
+def test_admin_restrito_ao_superadministrador(client, org_a, db):
+    staff = f.criar_usuario(org_a, Papel.ADMINISTRADOR, "staff_admin")
+    staff.is_staff = True
+    staff.save(update_fields=["is_staff"])
+    client.force_login(staff)
+    assert client.get(reverse("admin:index")).status_code == 302
+
+    super_ = f.criar_superadmin("admin_root")
+    client.force_login(super_)
+    assert client.get(reverse("admin:index")).status_code == 200
+
+
 def test_usuario_inativo_nao_autentica(client, solicitante_a):
     solicitante_a.is_active = False
     solicitante_a.save()
@@ -125,6 +137,16 @@ def test_organizacao_inativa_bloqueia_usuario_ja_logado(logar, org_a, solicitant
     org_a.ativa = False
     org_a.save()
     assert client.get(reverse("solicitacao_lista")).status_code == 403
+    assert client.get(reverse("home")).status_code == 403
+
+
+def test_usuario_inativo_bloqueia_home_em_sessao_existente(logar, solicitante_a):
+    client = logar(solicitante_a)
+    solicitante_a.is_active = False
+    solicitante_a.save(update_fields=["is_active"])
+    resposta = client.get(reverse("home"))
+    assert resposta.status_code == 302
+    assert resposta.url.startswith(reverse("login"))
 
 
 def test_create_superuser_define_papel_superadministrador(db):

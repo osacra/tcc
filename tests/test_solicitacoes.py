@@ -98,6 +98,22 @@ def test_servico_exige_papel_solicitante(analista_a, cenario_a):
         services.solicitar_liberacao(usuario=analista_a, **f.dados_solicitacao(cenario_a))
 
 
+def test_servico_bloqueia_solicitante_inativo(solicitante_a, cenario_a):
+    solicitante_a.is_active = False
+    solicitante_a.save(update_fields=["is_active"])
+
+    with pytest.raises(PermissionDenied):
+        services.solicitar_liberacao(usuario=solicitante_a, **f.dados_solicitacao(cenario_a))
+
+
+def test_servico_bloqueia_organizacao_inativa(solicitante_a, org_a, cenario_a):
+    org_a.ativa = False
+    org_a.save(update_fields=["ativa"])
+
+    with pytest.raises(PermissionDenied):
+        services.solicitar_liberacao(usuario=solicitante_a, **f.dados_solicitacao(cenario_a))
+
+
 def test_servico_rejeita_janela_invalida(solicitante_a, cenario_a):
     inicio = timezone.now() + timedelta(hours=2)
     for kwargs in (

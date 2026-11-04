@@ -1,8 +1,26 @@
 """Controle de acesso por papéis e isolamento por organização para as views."""
 
-from django.contrib.auth.mixins import UserPassesTestMixin
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.core.exceptions import PermissionDenied
 
 from .models import Papel
+
+
+class UsuarioAtivoMixin(LoginRequiredMixin):
+    """Permite acesso somente a contas ativas em organizações ativas."""
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.is_authenticated and not self.test_func():
+            raise PermissionDenied
+        return super().dispatch(request, *args, **kwargs)
+
+    def test_func(self):
+        usuario = self.request.user
+        if not usuario.is_authenticated or not usuario.is_active:
+            return False
+        if usuario.papel == Papel.SUPERADMINISTRADOR:
+            return True
+        return usuario.organizacao_id is not None and usuario.organizacao.ativa
 
 
 class PapelRequeridoMixin(UserPassesTestMixin):

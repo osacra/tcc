@@ -1,5 +1,4 @@
 from django.contrib import messages
-from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db import transaction
 from django.shortcuts import redirect
 from django.urls import reverse_lazy
@@ -7,10 +6,10 @@ from django.views.generic import CreateView, ListView, TemplateView, UpdateView
 
 from .forms import OrganizacaoForm, OrganizacaoNovaForm, UsuarioCriarForm, UsuarioEditarForm
 from .models import Organizacao, Papel, Usuario
-from .permissions import PapelRequeridoMixin
+from .permissions import PapelRequeridoMixin, UsuarioAtivoMixin
 
 
-class HomeView(LoginRequiredMixin, TemplateView):
+class HomeView(UsuarioAtivoMixin, TemplateView):
     """Página inicial conforme o papel do usuário."""
 
     template_name = "home.html"

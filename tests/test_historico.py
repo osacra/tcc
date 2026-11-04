@@ -102,9 +102,9 @@ def test_nao_existe_rota_para_alterar_o_historico(logar, equipe_a, aprovada_a):
 
 
 def test_historico_nao_e_editavel_no_admin(db):
-    from django.contrib import admin
+    from accounts.admin_site import tcc_admin_site
 
-    modelo_admin = admin.site._registry[HistoricoEvento]
+    modelo_admin = tcc_admin_site._registry[HistoricoEvento]
     assert not modelo_admin.has_add_permission(None)
     assert not modelo_admin.has_change_permission(None)
     assert not modelo_admin.has_delete_permission(None)
