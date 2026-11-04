@@ -1,0 +1,32 @@
+[project]
+name = "liberacao-motoristas"
+version = "0.1.0"
+description = "Plataforma web para controle de liberação de motoristas (TCC - ADS/IFSP Guarulhos)"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings"
+python_files = ["test_*.py"]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+markers = ["hash_real: usa o hash de senha real (PBKDF2) em vez do hash rápido de testes"]
+
+[tool.coverage.run]
+source = ["accounts", "cadastros", "liberacoes"]
+omit = ["*/migrations/*", "*/tests/*", "*/management/*", "*/admin.py"]
+
+[tool.coverage.report]
+show_missing = true
+
+[tool.black]
+line-length = 110
+target-version = ["py311"]
+extend-exclude = "migrations"
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+extend-exclude = ["migrations"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
