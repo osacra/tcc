@@ -14,12 +14,20 @@ def hash_rapido(settings, request):
 
 @pytest.fixture
 def org_a(db):
-    return f.criar_organizacao("Organização A")
+    organizacao = f.criar_organizacao("Organização A")
+    from liberacoes.regras import garantir_regras_iniciais
+
+    garantir_regras_iniciais(organizacao)
+    return organizacao
 
 
 @pytest.fixture
 def org_b(db):
-    return f.criar_organizacao("Organização B")
+    organizacao = f.criar_organizacao("Organização B")
+    from liberacoes.regras import garantir_regras_iniciais
+
+    garantir_regras_iniciais(organizacao)
+    return organizacao
 
 
 @pytest.fixture

@@ -9,6 +9,7 @@ from accounts.models import Organizacao, Papel, Usuario
 from cadastros.models import Motorista, Transportadora, Veiculo
 from cadastros.validators import gerar_cnpj_ficticio, gerar_cpf_ficticio
 from liberacoes.models import EstadoLiberacao, EstadoSolicitacao, Liberacao, SolicitacaoLiberacao, TipoEvento
+from liberacoes.regras import garantir_regras_iniciais
 
 from . import factories as f
 
@@ -103,6 +104,7 @@ def test_fluxo_completo_com_pendencia_aprovacao_e_revogacao(client, db):
         == 302
     )
     org = Organizacao.objects.get(nome="Org Demo")
+    garantir_regras_iniciais(org)
 
     # 2. Administrador cadastra usuários e atribui papéis.
     entrar(client, "admin_demo")
@@ -162,6 +164,7 @@ def test_fluxo_completo_com_pendencia_aprovacao_e_revogacao(client, db):
 
 def test_fluxo_de_reprovacao_automatica_pela_interface(client, db):
     org = f.criar_organizacao("Org Reprovação")
+    garantir_regras_iniciais(org)
     f.criar_usuario(org, Papel.ADMINISTRADOR, "adm", SENHA)
     f.criar_usuario(org, Papel.SOLICITANTE, "sol", SENHA)
     entrar(client, "adm")
@@ -193,6 +196,7 @@ def test_fluxo_de_reprovacao_automatica_pela_interface(client, db):
 
 def test_fluxo_de_aprovacao_automatica_pela_interface(client, db):
     org = f.criar_organizacao("Org Auto")
+    garantir_regras_iniciais(org)
     f.criar_usuario(org, Papel.ADMINISTRADOR, "adm", SENHA)
     f.criar_usuario(org, Papel.SOLICITANTE, "sol", SENHA)
     entrar(client, "adm")

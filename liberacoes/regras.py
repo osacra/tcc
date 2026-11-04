@@ -10,6 +10,7 @@ caminho de "pendência de análise manual", usando um critério documental do ca
 
 from dataclasses import dataclass
 
+from django.core.exceptions import ValidationError
 from django.utils import timezone
 
 from cadastros.models import VinculoMotoristaTransportadora
@@ -151,6 +152,21 @@ def garantir_regras_iniciais(organizacao):
         )
 
 
+def regras_ativas(organizacao):
+    """Retorna as regras ativas configuradas para a organização."""
+    return Regra.objects.da_organizacao(organizacao).filter(ativa=True)
+
+
+def exigir_regras_ativas(organizacao):
+    """Impede a avaliação quando a organização não possui regra ativa."""
+    regras_organizacao = regras_ativas(organizacao)
+    if not regras_organizacao.exists():
+        raise ValidationError(
+            "A solicitação não pode ser avaliada: a organização não possui regras ativas configuradas."
+        )
+    return regras_organizacao
+
+
 def executar_regra(regra, solicitacao, agora):
     funcao = FUNCOES.get(regra.codigo)
     if funcao is None:
@@ -164,6 +180,9 @@ def decidir_resultado(avaliacoes):
     ``avaliacoes`` é uma lista de ``(acao_se_nao_atendida, atendida)``. Devolve o
     ``ResultadoAutomatico`` correspondente.
     """
+    if not avaliacoes:
+        raise ValidationError("Não é possível decidir uma avaliação sem regras executadas.")
+
     nao_atendidas = [acao for acao, atendida in avaliacoes if not atendida]
     if AcaoRegra.REPROVAR in nao_atendidas:
         return ResultadoAutomatico.REPROVACAO

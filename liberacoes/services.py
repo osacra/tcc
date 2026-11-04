@@ -24,7 +24,6 @@ from .models import (
     EstadoSolicitacao,
     HistoricoEvento,
     Liberacao,
-    Regra,
     ResultadoAutomatico,
     SolicitacaoLiberacao,
     TipoEvento,
@@ -47,7 +46,14 @@ def registrar_evento(
 
 
 def _exigir_papel(usuario, papel):
-    if not usuario.is_authenticated or usuario.papel != papel or usuario.organizacao_id is None:
+    if (
+        not usuario.is_authenticated
+        or not usuario.is_active
+        or usuario.papel != papel
+        or usuario.organizacao_id is None
+    ):
+        raise PermissionDenied("Usuário sem permissão para esta ação.")
+    if not usuario.organizacao.ativa:
         raise PermissionDenied("Usuário sem permissão para esta ação.")
 
 
@@ -122,6 +128,7 @@ def solicitar_liberacao(
         raise ValidationError("O fim da janela de acesso deve ser posterior ao início.")
     if janela_fim <= agora:
         raise ValidationError("A janela de acesso já está encerrada.")
+    regras.exigir_regras_ativas(organizacao)
 
     solicitacao = SolicitacaoLiberacao.objects.create(
         organizacao=organizacao,
@@ -150,14 +157,14 @@ def solicitar_liberacao(
 
 
 def avaliar_solicitacao(solicitacao, *, usuario=None, agora=None):
-    """Executa as regras ativas da organização e aplica o resultado, respeitando a precedência."""
+    """Executa regras ativas e aplica o resultado, bloqueando configuração ausente."""
     agora = agora or timezone.now()
     with transaction.atomic():
+        regras_ativas = regras.exigir_regras_ativas(solicitacao.organizacao)
         _transicionar_solicitacao(solicitacao, EstadoSolicitacao.EM_AVALIACAO)
-        regras.garantir_regras_iniciais(solicitacao.organizacao)
 
         resumo = []
-        for regra in Regra.objects.da_organizacao(solicitacao.organizacao).filter(ativa=True):
+        for regra in regras_ativas:
             atendida, justificativa = regras.executar_regra(regra, solicitacao, agora)
             AvaliacaoRegra.objects.create(
                 organizacao=solicitacao.organizacao,

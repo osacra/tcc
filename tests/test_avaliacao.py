@@ -4,6 +4,7 @@ import time
 from datetime import timedelta
 
 import pytest
+from django.core.exceptions import ValidationError
 from django.utils import timezone
 
 from cadastros.models import VinculoMotoristaTransportadora
@@ -141,6 +142,15 @@ def test_regra_inativa_nao_e_avaliada(solicitante_a, org_a, cenario_a):
     assert "R05" not in resultado_por_regra(s)
 
 
+def test_organizacao_sem_regras_ativas_bloqueia_solicitacao(solicitante_a, org_a, cenario_a):
+    Regra.objects.filter(organizacao=org_a).update(ativa=False)
+
+    with pytest.raises(ValidationError, match="não possui regras ativas"):
+        avaliar(solicitante_a, cenario_a)
+
+    assert not solicitante_a.solicitacoes.exists()
+
+
 def test_regra_sem_implementacao_gera_erro_explicito(org_a, aprovada_a):
     regra = Regra(
         organizacao=org_a, codigo="R99", nome="x", descricao="x", acao_se_nao_atendida=AcaoRegra.REPROVAR
@@ -152,7 +162,6 @@ def test_regra_sem_implementacao_gera_erro_explicito(org_a, aprovada_a):
 @pytest.mark.parametrize(
     ("entradas", "esperado"),
     [
-        ([], ResultadoAutomatico.APROVACAO),
         ([(AcaoRegra.REPROVAR, True), (AcaoRegra.ANALISE_MANUAL, True)], ResultadoAutomatico.APROVACAO),
         ([(AcaoRegra.ANALISE_MANUAL, False)], ResultadoAutomatico.PENDENCIA),
         ([(AcaoRegra.REPROVAR, False)], ResultadoAutomatico.REPROVACAO),
@@ -161,6 +170,11 @@ def test_regra_sem_implementacao_gera_erro_explicito(org_a, aprovada_a):
 )
 def test_precedencia_do_resultado(entradas, esperado):
     assert regras.decidir_resultado(entradas) == esperado
+
+
+def test_lista_de_avaliacoes_vazia_e_bloqueada():
+    with pytest.raises(ValidationError, match="sem regras executadas"):
+        regras.decidir_resultado([])
 
 
 def test_r04_detecta_dados_obrigatorios_ausentes(aprovada_a):
