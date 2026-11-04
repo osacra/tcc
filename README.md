@@ -120,6 +120,13 @@ python -m ruff check . && python -m black --check .
 o quality gate exige cobertura total mínima de 90 %. Além dos testes, o fluxo foi percorrido
 contra o servidor HTTP real (login com CSRF, os três resultados da avaliação, decisão, revogação, histórico).
 
+### Integração contínua
+
+O workflow `.github/workflows/ci.yml` é executado em cada `push` para `main` e em cada pull request.
+Ele usa PostgreSQL 16 como serviço, testa Python 3.11, 3.12 e 3.13, aplica as migrations em um banco
+real, executa `manage.py check`, Ruff, Black, a suíte completa e exige cobertura mínima de 90 %. O relatório
+XML de cobertura é publicado como artefato de cada versão do Python por 14 dias.
+
 ## Decisões de projeto a confirmar
 1. **Vínculo ausente/vencido e cadastros inativos não bloqueiam o formulário**: a solicitação é registrada
    e **reprovada automaticamente com justificativa** (R01–R03), o que dá rastreabilidade e demonstra o
