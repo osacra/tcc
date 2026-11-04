@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block conteudo %}
+<h1 class="h4 mb-3">Revisar solicitação</h1>
+<div class="card shadow-sm mb-3">
+  <div class="card-body">
+    <dl class="row mb-0">
+      <dt class="col-sm-3">Motorista</dt><dd class="col-sm-9">{{ dados.motorista }}</dd>
+      <dt class="col-sm-3">Veículo</dt><dd class="col-sm-9">{{ dados.veiculo }}</dd>
+      <dt class="col-sm-3">Transportadora</dt><dd class="col-sm-9">{{ dados.transportadora }}</dd>
+      <dt class="col-sm-3">Finalidade</dt><dd class="col-sm-9">{{ dados.finalidade }}</dd>
+      <dt class="col-sm-3">Janela de acesso</dt>
+      <dd class="col-sm-9">{{ dados.janela_inicio|date:"d/m/Y H:i" }} → {{ dados.janela_fim|date:"d/m/Y H:i" }}</dd>
+    </dl>
+  </div>
+</div>
+<form method="post">
+  {% csrf_token %}
+  {% for campo in form %}{{ campo.as_hidden }}{% endfor %}
+  <input type="hidden" name="etapa" value="enviar">
+  <button class="btn btn-success" type="submit">Confirmar e enviar</button>
+  <a class="btn btn-link" href="{% url 'solicitacao_nova' %}">Voltar e editar</a>
+</form>
+{% endblock %}

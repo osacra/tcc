@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% load extras %}
+{% block conteudo %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h4 mb-0">Solicitação #{{ solicitacao.pk }}
+    <span class="badge text-bg-{{ solicitacao.estado|classe_estado }}">{{ solicitacao.get_estado_display }}</span>
+  </h1>
+  <a class="btn btn-link" href="{% url 'solicitacao_lista' %}">Voltar à lista</a>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-6">
+    <div class="card shadow-sm h-100"><div class="card-body">
+      <h2 class="h6 text-uppercase text-muted">Dados da solicitação</h2>
+      <dl class="row mb-0">
+        <dt class="col-sm-4">Motorista</dt>
+        <dd class="col-sm-8">{{ solicitacao.motorista.nome }} — CPF {{ solicitacao.motorista.cpf_mascarado }}<br>
+          <small class="text-muted">CNH {{ solicitacao.motorista.categoria_cnh }}, válida até {{ solicitacao.motorista.validade_cnh|date:"d/m/Y" }}
+          {% if not solicitacao.motorista.ativo %}· <strong>motorista inativo</strong>{% endif %}</small></dd>
+        <dt class="col-sm-4">Veículo</dt>
+        <dd class="col-sm-8">{{ solicitacao.veiculo.placa }}{% if not solicitacao.veiculo.ativo %} <small>(inativo)</small>{% endif %}</dd>
+        <dt class="col-sm-4">Transportadora</dt><dd class="col-sm-8">{{ solicitacao.transportadora }}</dd>
+        <dt class="col-sm-4">Finalidade</dt><dd class="col-sm-8">{{ solicitacao.finalidade }}</dd>
+        <dt class="col-sm-4">Janela de acesso</dt>
+        <dd class="col-sm-8">{{ solicitacao.janela_inicio|date:"d/m/Y H:i" }} → {{ solicitacao.janela_fim|date:"d/m/Y H:i" }}</dd>
+        <dt class="col-sm-4">Solicitante</dt><dd class="col-sm-8">{{ solicitacao.solicitante }}</dd>
+        <dt class="col-sm-4">Criada em</dt><dd class="col-sm-8">{{ solicitacao.criada_em|date:"d/m/Y H:i" }}</dd>
+        {% if solicitacao.decidida_por %}
+          <dt class="col-sm-4">Decisão manual</dt>
+          <dd class="col-sm-8">{{ solicitacao.decidida_por }} em {{ solicitacao.decidida_em|date:"d/m/Y H:i" }}<br>
+            <em>{{ solicitacao.justificativa_decisao }}</em></dd>
+        {% endif %}
+      </dl>
+    </div></div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card shadow-sm h-100"><div class="card-body">
+      <h2 class="h6 text-uppercase text-muted">Avaliação automática</h2>
+      {% if solicitacao.resultado_automatico %}
+        <p class="mb-2">Resultado: <strong>{{ solicitacao.get_resultado_automatico_display }}</strong></p>
+      {% endif %}
+      <ul class="list-group list-group-flush">
+        {% for a in avaliacoes %}
+          <li class="list-group-item px-0">
+            <span class="badge text-bg-{% if a.atendida %}success{% else %}{% if a.acao_aplicada == 'reprovar' %}danger{% else %}warning{% endif %}{% endif %}">
+              {% if a.atendida %}Atendida{% else %}Não atendida{% endif %}</span>
+            <strong>{{ a.regra.codigo }}</strong> — {{ a.regra.nome }}{% if a.regra.demonstrativa %} <small class="text-muted">(regra demonstrativa)</small>{% endif %}
+            <div class="small text-muted">{{ a.justificativa }}</div>
+          </li>
+        {% empty %}
+          <li class="list-group-item px-0 text-muted">Sem avaliações registradas.</li>
+        {% endfor %}
+      </ul>
+    </div></div>
+  </div>
+</div>
+
+{% if liberacao %}
+<div class="card shadow-sm mt-3"><div class="card-body">
+  <h2 class="h6 text-uppercase text-muted">Liberação #{{ liberacao.pk }}
+    <span class="badge text-bg-{{ liberacao.estado|classe_estado }}">{{ liberacao.get_estado_display }}</span></h2>
+  <p class="mb-1">Válida de {{ liberacao.valida_de|date:"d/m/Y H:i" }} até {{ liberacao.valida_ate|date:"d/m/Y H:i" }}.</p>
+  {% if liberacao.revogada_por %}
+    <p class="mb-0">Revogada por {{ liberacao.revogada_por }} em {{ liberacao.revogada_em|date:"d/m/Y H:i" }}:
+      <em>{{ liberacao.justificativa_revogacao }}</em></p>
+  {% endif %}
+  {% if form_revogacao %}
+    <form method="post" action="{% url 'liberacao_revogar' liberacao.pk %}" class="mt-3">
+      {% csrf_token %}
+      {% with form=form_revogacao %}{% include "partials/form_campos.html" %}{% endwith %}
+      <button class="btn btn-outline-danger" type="submit">Revogar liberação</button>
+    </form>
+  {% endif %}
+</div></div>
+{% endif %}
+
+{% if form_decisao %}
+<div class="card border-warning shadow-sm mt-3"><div class="card-body">
+  <h2 class="h6 text-uppercase text-muted">Análise manual</h2>
+  <form method="post" action="{% url 'solicitacao_decidir' solicitacao.pk %}">
+    {% csrf_token %}
+    {% with form=form_decisao %}{% include "partials/form_campos.html" %}{% endwith %}
+    <button class="btn btn-warning" type="submit">Registrar decisão</button>
+  </form>
+</div></div>
+{% endif %}
+
+<div class="card shadow-sm mt-3"><div class="card-body">
+  <h2 class="h6 text-uppercase text-muted">Histórico</h2>
+  <div class="table-responsive">
+  <table class="table table-sm mb-0">
+    <thead><tr><th>Data/hora</th><th>Evento</th><th>Responsável</th><th>Detalhes</th></tr></thead>
+    <tbody>
+    {% for e in eventos %}
+      <tr>
+        <td class="text-nowrap">{{ e.criado_em|date:"d/m/Y H:i:s" }}</td>
+        <td>{{ e.get_tipo_display }}</td>
+        <td>{{ e.responsavel }}</td>
+        <td>{{ e.descricao }}{% if e.justificativa %}<br><em>Justificativa: {{ e.justificativa }}</em>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div></div>
+{% endblock %}

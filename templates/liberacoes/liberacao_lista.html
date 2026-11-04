@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% load extras %}
+{% block conteudo %}
+<h1 class="h4 mb-3">Liberações</h1>
+<form method="get" class="mb-3">
+  <div class="input-group" style="max-width: 360px">
+    <select name="estado" class="form-select" aria-label="Filtrar por estado">
+      <option value="">Todos os estados</option>
+      {% for valor, rotulo in estados %}<option value="{{ valor }}" {% if valor == estado_atual %}selected{% endif %}>{{ rotulo }}</option>{% endfor %}
+    </select>
+    <button class="btn btn-outline-secondary" type="submit">Filtrar</button>
+  </div>
+</form>
+<div class="table-responsive">
+<table class="table table-striped bg-white shadow-sm">
+  <thead><tr><th>#</th><th>Motorista</th><th>Veículo</th><th>Transportadora</th><th>Validade</th><th>Estado</th><th></th></tr></thead>
+  <tbody>
+  {% for l in liberacoes %}
+    <tr>
+      <td>{{ l.pk }}</td>
+      <td>{{ l.solicitacao.motorista }}</td>
+      <td>{{ l.solicitacao.veiculo }}</td>
+      <td>{{ l.solicitacao.transportadora }}</td>
+      <td>{{ l.valida_de|date:"d/m/Y H:i" }} → {{ l.valida_ate|date:"d/m/Y H:i" }}</td>
+      <td><span class="badge text-bg-{{ l.estado|classe_estado }}">{{ l.get_estado_display }}</span></td>
+      <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{% url 'solicitacao_detalhe' l.solicitacao_id %}">Detalhes</a></td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="7" class="text-muted">Nenhuma liberação.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% include "partials/paginacao.html" %}
+{% endblock %}
