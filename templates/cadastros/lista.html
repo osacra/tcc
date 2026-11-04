@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% load extras %}
+{% block conteudo %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h4 mb-0">{{ titulo }}</h1>
+  <a class="btn btn-primary" href="{% url slug|add:'_novo' %}">Novo</a>
+</div>
+<table class="table table-striped bg-white shadow-sm">
+  <thead><tr>{% for rotulo, atributo in colunas %}<th>{{ rotulo }}</th>{% endfor %}<th></th></tr></thead>
+  <tbody>
+  {% for obj in object_list %}
+    <tr>
+      {% for rotulo, atributo in colunas %}<td>{{ obj|valor:atributo }}</td>{% endfor %}
+      <td class="text-end text-nowrap">
+        <a class="btn btn-sm btn-outline-secondary" href="{% url slug|add:'_editar' obj.pk %}">Editar</a>
+        <a class="btn btn-sm btn-outline-danger" href="{% url slug|add:'_excluir' obj.pk %}">Excluir</a>
+      </td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="{{ colunas|length|add:1 }}" class="text-muted">Nenhum registro.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% include "partials/paginacao.html" %}
+{% endblock %}
