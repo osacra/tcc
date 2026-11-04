@@ -9,6 +9,7 @@ from django.utils import timezone
 
 from cadastros.models import VinculoMotoristaTransportadora
 from liberacoes import regras, services
+from liberacoes.estados import TransicaoInvalida
 from liberacoes.models import (
     AcaoRegra,
     AvaliacaoRegra,
@@ -208,3 +209,11 @@ def test_avaliacao_em_menos_de_2_segundos(solicitante_a, cenario_a):  # RNF06
     inicio = time.perf_counter()
     avaliar(solicitante_a, cenario_a)
     assert time.perf_counter() - inicio < 2
+
+
+def test_reavaliacao_de_solicitacao_decidida_e_bloqueada(solicitante_a, cenario_a):
+    solicitacao = avaliar(solicitante_a, cenario_a)
+    quantidade = solicitacao.avaliacoes.count()
+    with pytest.raises(TransicaoInvalida):
+        services.avaliar_solicitacao(solicitacao)
+    assert solicitacao.avaliacoes.count() == quantidade

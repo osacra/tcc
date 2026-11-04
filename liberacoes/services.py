@@ -33,6 +33,10 @@ from .models import (
 def registrar_evento(
     solicitacao, tipo, descricao, *, usuario=None, justificativa="", liberacao=None, dados=None
 ):
+    if liberacao is not None and liberacao.solicitacao_id != solicitacao.pk:
+        raise ValidationError("A liberação do evento não pertence à solicitação informada.")
+    if usuario is not None and usuario.organizacao_id != solicitacao.organizacao_id:
+        raise PermissionDenied("Usuário de outra organização.")
     return HistoricoEvento.objects.create(
         organizacao=solicitacao.organizacao,
         solicitacao=solicitacao,
@@ -152,7 +156,7 @@ def solicitar_liberacao(
     registrar_evento(
         solicitacao, TipoEvento.ENVIADA_PARA_AVALIACAO, "Solicitação enviada para avaliação.", usuario=usuario
     )
-    avaliar_solicitacao(solicitacao, usuario=usuario, agora=agora)
+    solicitacao = avaliar_solicitacao(solicitacao, usuario=usuario, agora=agora)
     return solicitacao
 
 
@@ -160,6 +164,7 @@ def avaliar_solicitacao(solicitacao, *, usuario=None, agora=None):
     """Executa regras ativas e aplica o resultado, bloqueando configuração ausente."""
     agora = agora or timezone.now()
     with transaction.atomic():
+        solicitacao = SolicitacaoLiberacao.objects.select_for_update().get(pk=solicitacao.pk)
         regras_ativas = regras.exigir_regras_ativas(solicitacao.organizacao)
         _transicionar_solicitacao(solicitacao, EstadoSolicitacao.EM_AVALIACAO)
 
@@ -275,6 +280,30 @@ def expirar_liberacoes_vencidas(organizacao, agora=None):
             )
             quantidade += 1
     return quantidade
+
+
+@transaction.atomic
+def utilizar_liberacao(*, liberacao_id, organizacao, agora=None):
+    """Marca uma liberação vigente como utilizada uma única vez."""
+    agora = agora or timezone.now()
+    liberacao = (
+        Liberacao.objects.da_organizacao(organizacao)
+        .select_for_update()
+        .select_related("solicitacao")
+        .get(pk=liberacao_id)
+    )
+    if liberacao.valida_ate <= agora:
+        expirar_liberacoes_vencidas(organizacao, agora)
+        liberacao.refresh_from_db()
+    _transicionar_liberacao(liberacao, EstadoLiberacao.UTILIZADA)
+    liberacao.save(update_fields=["estado"])
+    registrar_evento(
+        liberacao.solicitacao,
+        TipoEvento.LIBERACAO_UTILIZADA,
+        f"Liberação #{liberacao.pk} utilizada.",
+        liberacao=liberacao,
+    )
+    return liberacao
 
 
 def revogar_liberacao(*, liberacao_id, usuario, justificativa, agora=None):

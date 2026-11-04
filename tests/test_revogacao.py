@@ -4,7 +4,9 @@ from datetime import timedelta
 
 import pytest
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.management import call_command
 from django.urls import reverse
+from django.utils import timezone
 
 from accounts.models import Papel
 from liberacoes import services
@@ -92,6 +94,24 @@ def test_nao_expira_liberacao_dentro_da_validade(org_a, aprovada_a):
     assert services.expirar_liberacoes_vencidas(org_a) == 0
     aprovada_a.liberacao.refresh_from_db()
     assert aprovada_a.liberacao.estado == EstadoLiberacao.VIGENTE
+
+
+def test_utiliza_liberacao_uma_unica_vez(org_a, aprovada_a):
+    liberacao = services.utilizar_liberacao(liberacao_id=aprovada_a.liberacao.pk, organizacao=org_a)
+    assert liberacao.estado == EstadoLiberacao.UTILIZADA
+    assert aprovada_a.eventos.filter(tipo=TipoEvento.LIBERACAO_UTILIZADA).exists()
+    with pytest.raises(TransicaoInvalida):
+        services.utilizar_liberacao(liberacao_id=liberacao.pk, organizacao=org_a)
+
+
+def test_comando_expira_liberacoes_por_organizacao(org_a, aprovada_a):
+    agora = timezone.now()
+    aprovada_a.liberacao.valida_de = agora - timedelta(hours=2)
+    aprovada_a.liberacao.valida_ate = agora - timedelta(minutes=1)
+    aprovada_a.liberacao.save(update_fields=["valida_de", "valida_ate"])
+    call_command("expirar_liberacoes", "--organizacao", str(org_a.pk))
+    aprovada_a.liberacao.refresh_from_db()
+    assert aprovada_a.liberacao.estado == EstadoLiberacao.EXPIRADA
 
 
 def test_nao_revoga_liberacao_expirada(analista_a, aprovada_a):

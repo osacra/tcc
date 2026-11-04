@@ -2,6 +2,7 @@
 HistoricoEvento)."""
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q
 from django.utils import timezone
@@ -51,11 +52,22 @@ class SolicitacaoLiberacao(ModeloDaOrganizacao):
         constraints = [
             models.CheckConstraint(
                 condition=Q(janela_fim__gt=models.F("janela_inicio")), name="solicitacao_janela_valida"
-            )
+            ),
+            models.CheckConstraint(
+                condition=Q(estado__in=[valor for valor, _ in EstadoSolicitacao.choices]),
+                name="solicitacao_estado_valido",
+            ),
         ]
 
     def __str__(self):
         return f"Solicitação #{self.pk} — {self.motorista}"
+
+    def clean(self):
+        super().clean()
+        for campo in ("solicitante", "motorista", "veiculo", "transportadora", "decidida_por"):
+            objeto = getattr(self, campo, None) if getattr(self, f"{campo}_id") else None
+            if objeto is not None and objeto.organizacao_id != self.organizacao_id:
+                raise ValidationError({campo: "Registro de outra organização."})
 
 
 class LiberacaoQuerySet(OrganizacaoQuerySet):
@@ -89,6 +101,26 @@ class Liberacao(ModeloDaOrganizacao):
         ordering = ["-criada_em"]
         verbose_name = "liberação"
         verbose_name_plural = "liberações"
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(valida_ate__gt=models.F("valida_de")), name="liberacao_janela_valida"
+            ),
+            models.CheckConstraint(
+                condition=Q(estado__in=[valor for valor, _ in EstadoLiberacao.choices]),
+                name="liberacao_estado_valido",
+            ),
+        ]
+
+    def clean(self):
+        super().clean()
+        if self.solicitacao_id and self.solicitacao.organizacao_id != self.organizacao_id:
+            raise ValidationError({"solicitacao": "Solicitação de outra organização."})
+        if self.solicitacao_id and self.solicitacao.estado != EstadoSolicitacao.APROVADA:
+            raise ValidationError({"solicitacao": "A liberação exige uma solicitação aprovada."})
+        if self.revogada_por_id and self.revogada_por.organizacao_id != self.organizacao_id:
+            raise ValidationError({"revogada_por": "Usuário de outra organização."})
+        if self.valida_de and self.valida_ate and self.valida_ate <= self.valida_de:
+            raise ValidationError({"valida_ate": "O fim da validade deve ser posterior ao início."})
 
     def __str__(self):
         return f"Liberação #{self.pk} ({self.get_estado_display()})"
@@ -141,6 +173,18 @@ class AvaliacaoRegra(ModeloDaOrganizacao):
         ordering = ["regra__codigo"]
         verbose_name = "avaliação de regra"
         verbose_name_plural = "avaliações de regra"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["solicitacao", "regra"], name="avaliacao_regra_unica_por_solicitacao"
+            )
+        ]
+
+    def clean(self):
+        super().clean()
+        if self.solicitacao_id and self.solicitacao.organizacao_id != self.organizacao_id:
+            raise ValidationError({"solicitacao": "Solicitação de outra organização."})
+        if self.regra_id and self.regra.organizacao_id != self.organizacao_id:
+            raise ValidationError({"regra": "Regra de outra organização."})
 
 
 class ImutavelQuerySet(OrganizacaoQuerySet):
@@ -164,6 +208,7 @@ class TipoEvento(models.TextChoices):
     APROVADA_MANUALMENTE = "aprovada_manualmente", "Aprovada manualmente"
     REPROVADA_MANUALMENTE = "reprovada_manualmente", "Reprovada manualmente"
     LIBERACAO_CRIADA = "liberacao_criada", "Liberação criada"
+    LIBERACAO_UTILIZADA = "liberacao_utilizada", "Liberação utilizada"
     LIBERACAO_REVOGADA = "liberacao_revogada", "Liberação revogada"
     LIBERACAO_EXPIRADA = "liberacao_expirada", "Liberação expirada"
 
@@ -199,6 +244,18 @@ class HistoricoEvento(ModeloDaOrganizacao):
         ordering = ["criado_em", "pk"]
         verbose_name = "evento do histórico"
         verbose_name_plural = "histórico de eventos"
+
+    def clean(self):
+        super().clean()
+        if self.solicitacao_id and self.solicitacao.organizacao_id != self.organizacao_id:
+            raise ValidationError({"solicitacao": "Solicitação de outra organização."})
+        if self.liberacao_id:
+            if self.liberacao.organizacao_id != self.organizacao_id:
+                raise ValidationError({"liberacao": "Liberação de outra organização."})
+            if self.liberacao.solicitacao_id != self.solicitacao_id:
+                raise ValidationError({"liberacao": "Liberação de outra solicitação."})
+        if self.usuario_id and self.usuario.organizacao_id != self.organizacao_id:
+            raise ValidationError({"usuario": "Usuário de outra organização."})
 
     def save(self, *args, **kwargs):
         if not self._state.adding:

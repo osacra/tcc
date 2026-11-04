@@ -111,9 +111,6 @@ class VinculoMotoristaTransportadora(ModeloDaOrganizacao):
             )
         ]
 
-    def __str__(self):
-        return f"{self.motorista} → {self.transportadora}"
-
     def clean(self):
         super().clean()
         if self.fim and self.inicio and self.fim < self.inicio:
@@ -122,3 +119,6 @@ class VinculoMotoristaTransportadora(ModeloDaOrganizacao):
             objeto = getattr(self, campo, None) if getattr(self, f"{campo}_id") else None
             if objeto is not None and objeto.organizacao_id != self.organizacao_id:
                 raise ValidationError({campo: "Registro de outra organização."})
+
+    def __str__(self):
+        return f"{self.motorista} → {self.transportadora}"
