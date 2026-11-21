@@ -100,6 +100,8 @@ def r03_veiculo_ativo(solicitacao, agora):
         return False, "Veículo não pertence à organização da solicitação."
     if not veiculo.ativo:
         return False, f"O veículo {veiculo.placa} está inativo."
+    if not solicitacao.transportadora.ativa:
+        return False, f"A transportadora {solicitacao.transportadora.nome} está inativa."
     if veiculo.transportadora_id != solicitacao.transportadora_id:
         return False, (
             f"O veículo {veiculo.placa} pertence a {veiculo.transportadora.nome}, "

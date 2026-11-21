@@ -95,6 +95,16 @@ def test_veiculo_inativo_reprova(solicitante_a, org_a):
     assert not r["R03"].atendida and "inativo" in r["R03"].justificativa
 
 
+def test_transportadora_inativa_reprova_mesmo_com_veiculo_ativo(solicitante_a, org_a):
+    c = f.criar_cenario(org_a)
+    c["transportadora"].ativa = False
+    c["transportadora"].save(update_fields=["ativa"])
+    s = avaliar(solicitante_a, c)
+    r = resultado_por_regra(s)
+    assert s.estado == EstadoSolicitacao.REPROVADA
+    assert not r["R03"].atendida and "transportadora" in r["R03"].justificativa
+
+
 def test_cnh_vencendo_antes_do_fim_da_janela_exige_analise_manual(solicitante_a, org_a):
     c = f.criar_cenario(org_a, validade_cnh=timezone.localdate() - timedelta(days=1))
     s = avaliar(solicitante_a, c)
