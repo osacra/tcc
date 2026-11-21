@@ -69,11 +69,13 @@ pertence a nenhuma organização e usa a tela **Organizações** para criar cada
 seu primeiro Administrador.
 
 ### Demonstração (`seed_demo`)
-Cria a "Organização Demonstração" com os usuários `demo_administrador`, `demo_solicitante`,
-`demo_analista` e `demo_gestor` (senha `demo-Senha-2026`, alterável com `--senha`) e quatro motoristas
-que exercitam cada resultado: aprovação automática, pendência de análise (CNH vencida), reprovação
-por falta de vínculo e reprovação por motorista inativo. Use o veículo **DEM1A11** (ativo, da
-transportadora com vínculo) nas solicitações.
+Cria, de forma idempotente, a "Organização Demonstração" com os usuários `demo_administrador`,
+`demo_solicitante`, `demo_analista` e `demo_gestor`. A senha padrão para contas novas é
+`demo-Senha-2026` e pode ser alterada com `--senha`; uma repetição do comando não troca a senha de
+contas já existentes. O conjunto usa nomes naturais e chaves estáveis, não duplica registros e
+materializa aprovação automática, pendência de análise, reprovação por falta de vínculo, motorista
+inativo, liberação revogada, utilizada e expirada. Todos os dados são fictícios e ficam isolados na
+organização de demonstração.
 
 ## Regras de avaliação implementadas
 Funções determinísticas em `liberacoes/regras.py`, sem motor genérico e sem configuração pela

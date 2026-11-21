@@ -1,25 +1,15 @@
 {% extends "base.html" %}
 {% block conteudo %}
-<h1 class="h3 mb-1">Olá, {{ user }}</h1>
-<p class="text-muted">{{ user.get_papel_display }}{% if user.organizacao %} · {{ user.organizacao }}{% endif %}</p>
-<div class="row g-3">
-  {% for titulo, quantidade, rota in cartoes %}
-    <div class="col-6 col-md-3">
-      <a class="text-decoration-none" href="{% url rota %}">
-        <div class="card shadow-sm h-100">
-          <div class="card-body">
-            <div class="display-6">{{ quantidade }}</div>
-            <div class="text-muted">{{ titulo }}</div>
-          </div>
-        </div>
-      </a>
-    </div>
-  {% endfor %}
+<header class="page-header d-flex flex-wrap justify-content-between align-items-end gap-3">
+  <div><div class="eyebrow">Painel operacional</div><h1 class="h3 mb-1">Olá, {{ user.first_name|default:user.username }}</h1><p class="text-muted mb-0">{{ user.get_papel_display }}{% if user.organizacao %} · {{ user.organizacao }}{% endif %}</p></div>
+  {% if user.eh_solicitante %}<a class="btn btn-primary" href="{% url 'solicitacao_nova' %}">+ Nova solicitação</a>{% endif %}
+  {% if user.eh_analista %}<a class="btn btn-primary" href="{% url 'analise_lista' %}">Abrir fila de análise</a>{% endif %}
+</header>
+<div class="row g-3 mb-4">
+  {% for titulo, quantidade, rota in cartoes %}<div class="col-6 col-xl-3"><a class="text-decoration-none text-reset" href="{% url rota %}"><div class="card metric-card h-100"><div class="card-body"><div class="metric-value">{{ quantidade }}</div><div class="text-muted small">{{ titulo }}</div></div></div></a></div>{% endfor %}
 </div>
-{% if user.eh_solicitante %}
-  <a class="btn btn-primary mt-4" href="{% url 'solicitacao_nova' %}">Nova solicitação de liberação</a>
-{% endif %}
-{% if user.eh_analista %}
-  <a class="btn btn-warning mt-4" href="{% url 'analise_lista' %}">Ver pendências de análise</a>
-{% endif %}
+<div class="row g-4">
+  <div class="col-lg-7"><div class="card h-100"><div class="card-body"><div class="eyebrow mb-2">Próximo passo</div><h2 class="h5">{% if user.eh_analista %}Resolva as pendências com maior risco primeiro.{% elif user.eh_solicitante %}Envie uma solicitação com janela e finalidade completas.{% elif user.eh_administrador %}Mantenha cadastros e vínculos prontos para operação.{% elif user.eh_gestor %}Acompanhe o ciclo completo das liberações.{% else %}Administre as organizações da plataforma.{% endif %}</h2><p class="text-muted mb-0">Cada decisão fica registrada com as regras avaliadas, a justificativa e o responsável.</p></div></div></div>
+  <div class="col-lg-5"><div class="card h-100"><div class="card-body"><div class="eyebrow mb-2">Acesso rápido</div><div class="d-grid gap-2">{% if user.eh_solicitante %}<a class="btn btn-outline-primary text-start" href="{% url 'solicitacao_lista' %}">Consultar minhas solicitações</a>{% endif %}{% if user.eh_analista or user.eh_gestor %}<a class="btn btn-outline-primary text-start" href="{% url 'liberacao_lista' %}">Consultar liberações</a>{% endif %}{% if user.eh_administrador %}<a class="btn btn-outline-primary text-start" href="{% url 'vinculo_lista' %}">Revisar vínculos vigentes</a>{% endif %}{% if user.eh_superadministrador %}<a class="btn btn-outline-primary text-start" href="{% url 'organizacao_lista' %}">Gerenciar organizações</a>{% endif %}</div></div></div></div>
+</div>
 {% endblock %}

@@ -1,18 +1,20 @@
 {% extends "base.html" %}
 {% load extras %}
 {% block conteudo %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h1 class="h4 mb-0">{{ titulo }}</h1>
-  {% if user.eh_solicitante %}<a class="btn btn-primary" href="{% url 'solicitacao_nova' %}">Nova solicitação</a>{% endif %}
+<div class="page-header d-flex justify-content-between align-items-end gap-3">
+  <div><div class="eyebrow">Acompanhamento</div><h1 class="h4 mb-0">{{ titulo }}</h1></div>
+  {% if user.eh_solicitante %}<a class="btn btn-primary" href="{% url 'solicitacao_nova' %}">+ Nova solicitação</a>{% endif %}
 </div>
 {% if not sem_filtro %}
 <form method="get" class="mb-3">
-  <div class="input-group" style="max-width: 360px">
+  <div class="row g-2">
+    <div class="col-md-7"><input class="form-control" name="q" value="{{ busca_atual }}" placeholder="Buscar motorista, placa ou finalidade" aria-label="Buscar solicitações"></div>
+    <div class="col-md-4">
     <select name="estado" class="form-select" aria-label="Filtrar por estado">
       <option value="">Todos os estados</option>
       {% for valor, rotulo in estados %}<option value="{{ valor }}" {% if valor == estado_atual %}selected{% endif %}>{{ rotulo }}</option>{% endfor %}
     </select>
-    <button class="btn btn-outline-secondary" type="submit">Filtrar</button>
+    </div><div class="col-md-1"><button class="btn btn-outline-secondary w-100" type="submit">Filtrar</button></div>
   </div>
 </form>
 {% endif %}
@@ -31,7 +33,7 @@
       <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{% url 'solicitacao_detalhe' s.pk %}">Detalhes</a></td>
     </tr>
   {% empty %}
-    <tr><td colspan="7" class="text-muted">Nenhuma solicitação.</td></tr>
+    <tr><td colspan="7"><div class="text-center py-5"><div class="eyebrow mb-2">Nada por aqui</div><p class="text-muted mb-0">Nenhuma solicitação corresponde aos filtros atuais.</p></div></td></tr>
   {% endfor %}
   </tbody>
 </table>

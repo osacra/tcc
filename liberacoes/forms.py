@@ -17,10 +17,19 @@ def _campo_data_hora(rotulo):
 class SolicitacaoForm(forms.Form):
     """Formulário do Solicitante. Só oferece (e só aceita) registros da própria organização."""
 
-    motorista = forms.ModelChoiceField(queryset=Motorista.objects.none(), label="Motorista")
+    motorista = forms.ModelChoiceField(
+        queryset=Motorista.objects.none(),
+        label="Motorista",
+        help_text=(
+            "Motoristas sem vínculo vigente continuam visíveis para que a reprovação fique "
+            "registrada e explicável."
+        ),
+    )
     veiculo = forms.ModelChoiceField(queryset=Veiculo.objects.none(), label="Veículo")
     transportadora = forms.ModelChoiceField(queryset=Transportadora.objects.none(), label="Transportadora")
-    finalidade = forms.CharField(label="Finalidade da liberação", max_length=255)
+    finalidade = forms.CharField(
+        label="Finalidade da liberação", max_length=255, help_text="Explique por que o acesso é necessário."
+    )
     janela_inicio = _campo_data_hora("Início da janela de acesso")
     janela_fim = _campo_data_hora("Fim da janela de acesso")
 
@@ -49,6 +58,8 @@ class SolicitacaoForm(forms.Form):
         veiculo, transportadora = dados.get("veiculo"), dados.get("transportadora")
         if veiculo and transportadora and veiculo.transportadora_id != transportadora.pk:
             self.add_error("veiculo", "Este veículo não pertence à transportadora selecionada.")
+        if transportadora and not transportadora.ativa:
+            self.add_error("transportadora", "A transportadora selecionada está inativa.")
         return dados
 
 

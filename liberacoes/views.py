@@ -1,5 +1,6 @@
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from django.db.models import Q
 from django.http import Http404
 from django.shortcuts import redirect, render
 from django.urls import reverse
@@ -51,12 +52,21 @@ class SolicitacaoListView(PapelRequeridoMixin, SolicitacaoQuerysetMixin, ListVie
         estado = self.request.GET.get("estado")
         if estado in EstadoSolicitacao.values:
             queryset = queryset.filter(estado=estado)
+        busca = self.request.GET.get("q", "").strip()
+        if busca:
+            queryset = queryset.filter(
+                Q(motorista__nome__icontains=busca)
+                | Q(veiculo__placa__icontains=busca)
+                | Q(transportadora__nome__icontains=busca)
+                | Q(finalidade__icontains=busca)
+            )
         return queryset
 
     def get_context_data(self, **kwargs):
         contexto = super().get_context_data(**kwargs)
         contexto["estados"] = EstadoSolicitacao.choices
         contexto["estado_atual"] = self.request.GET.get("estado", "")
+        contexto["busca_atual"] = self.request.GET.get("q", "")
         contexto["titulo"] = "Minhas solicitações" if self.request.user.eh_solicitante else "Solicitações"
         return contexto
 
