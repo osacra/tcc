@@ -197,7 +197,9 @@ class Command(BaseCommand):
                 janela_inicio=inicio,
                 janela_fim=fim,
             )
-            Liberacao.objects.filter(pk=solic.liberacao.pk).update(valida_ate=agora - timedelta(minutes=1))
+            Liberacao.objects.filter(pk=solic.liberacao.pk).update(
+                valida_de=agora - timedelta(minutes=2), valida_ate=agora - timedelta(minutes=1)
+            )
             services.expirar_liberacoes_vencidas(org, agora=agora)
 
         self.stdout.write(
